@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospital Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#FAFBFC; --card:#FFFFFF; --border:#E8EEF4; --text:#2D3748; --muted:#718096;
+  --opd:#A8D8EA; --opd-d:#5BA8C4;
+  --usg:#B8E0D2; --usg-d:#6FB89A;
+  --del:#FFB7B2; --del-d:#E07F77;
+  --lscs:#FFDAB9; --lscs-d:#D89B6E;
+  --lap:#C7CEEA; --lap-d:#7B85C4;
+  --ivf:#E2C2E0; --ivf-d:#A872A4;
+  --iui:#F4C2C2; --iui-d:#C77777;
+  --fol:#D4E5B7; --fol-d:#8AAA5C;
+  --rev:#B5EAD7; --rev-d:#5FBE92;
+  --pred:#FFE4A1; --pred-d:#D9A93B;
+  --ok:#86B6A1; --warn:#E8A87C;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+header h1{font-size:18px;font-weight:600;color:#1a365d;}
+header .sub{font-size:12px;color:var(--muted);}
+.tabs{display:flex;gap:4px;background:var(--card);padding:8px 24px;border-bottom:1px solid var(--border);overflow-x:auto;flex-wrap:wrap;}
+.tab{padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--muted);border:1px solid transparent;white-space:nowrap;background:transparent;}
+.tab:hover{background:#F0F4F8;}
+.tab.active{background:#E6F1FB;color:#1a365d;border-color:#C8DDF0;font-weight:500;}
+main{padding:20px 24px;max-width:1400px;margin:0 auto;}
+.panel{display:none;}
+.panel.active{display:block;}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+.section h2{font-size:15px;font-weight:600;margin-bottom:12px;color:#2d3748;}
+.section h3{font-size:13px;font-weight:600;margin-bottom:8px;color:#4a5568;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.kpi{padding:14px;border-radius:10px;}
+.kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;opacity:0.8;}
+.kpi .value{font-size:22px;font-weight:600;margin:6px 0 2px;}
+.kpi .delta{font-size:11px;opacity:0.85;}
+.kpi.opd{background:var(--opd);color:#1a4d5c;}
+.kpi.usg{background:var(--usg);color:#1f4a3a;}
+.kpi.del{background:var(--del);color:#7a2622;}
+.kpi.lscs{background:var(--lscs);color:#6b3e1a;}
+.kpi.ivf{background:var(--ivf);color:#5a2858;}
+.kpi.iui{background:var(--iui);color:#702828;}
+.kpi.fol{background:var(--fol);color:#3d5018;}
+.kpi.lap{background:var(--lap);color:#2d3672;}
+.kpi.rev{background:var(--rev);color:#1c5a3e;}
+.kpi.pred{background:var(--pred);color:#6b4d10;}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;}
+.controls label{font-size:12px;color:var(--muted);}
+select,input[type="number"],input[type="text"],input[type="month"]{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;color:var(--text);font-family:inherit;}
+input[type="number"]{width:80px;}
+button{padding:7px 14px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text);font-family:inherit;}
+button:hover{background:#F0F4F8;}
+button.primary{background:#A8D8EA;border-color:#7FBED2;color:#1a4d5c;font-weight:500;}
+button.primary:hover{background:#90C7D9;}
+button.danger{background:#FFD1CC;border-color:#E8A39C;color:#7a2622;}
+button.danger:hover{background:#FFB7B2;}
+button.success{background:#B5EAD7;border-color:#85C9AE;color:#1c5a3e;}
+button.success:hover{background:#9DD9C2;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);user-select:none;}
+.chip.on{font-weight:500;}
+.chip.opd.on{background:var(--opd);border-color:var(--opd-d);}
+.chip.usg.on{background:var(--usg);border-color:var(--usg-d);}
+.chip.del.on{background:var(--del);border-color:var(--del-d);}
+.chip.lscs.on{background:var(--lscs);border-color:var(--lscs-d);}
+.chip.lap.on{background:var(--lap);border-color:var(--lap-d);}
+.chip.ivf.on{background:var(--ivf);border-color:var(--ivf-d);}
+.chip.iui.on{background:var(--iui);border-color:var(--iui-d);}
+.chip.fol.on{background:var(--fol);border-color:var(--fol-d);}
+.chip.rev.on{background:var(--rev);border-color:var(--rev-d);}
+.chip.lscsr.on,.chip.ivfr.on,.chip.iuir.on,.chip.folr.on{background:#F0E6F4;border-color:#A082B0;color:#3a1f48;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right;}
+th{background:#F7FAFC;font-weight:600;color:#4a5568;text-align:center;font-size:12px;position:sticky;top:0;}
+th:first-child,td:first-child{text-align:left;}
+td input{width:100%;border:none;background:transparent;padding:3px 4px;text-align:right;font-size:12.5px;font-family:inherit;color:var(--text);}
+td input:focus{background:#FFF9E6;outline:1px solid #F0D080;border-radius:3px;}
+td.estimated{background:#FFF8E1;color:#7a5c00;font-style:italic;}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;}
+.chart-box{position:relative;height:340px;margin-top:10px;}
+.chart-box.tall{height:420px;}
+.spark-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+.spark{background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px;}
+.spark .stitle{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.spark .sval{font-size:18px;font-weight:600;margin:4px 0;}
+.spark canvas{height:60px !important;}
+.note{background:#FFF8E1;border:1px solid #F0D080;color:#7a5c00;padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;}
+.success-msg{background:#E6F4EC;border:1px solid #9DD9C2;color:#1c5a3e;padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;}
+.tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;background:#FFF8E1;color:#7a5c00;border:1px solid #F0D080;margin-left:6px;}
+.tag.ok{background:#E6F4EC;color:#1c5a3e;border-color:#9DD9C2;}
+.flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:768px){.row{grid-template-columns:1fr;}.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;}
+.legend-mini{font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
+.legend-mini span{display:flex;align-items:center;gap:4px;}
+.legend-mini i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+.help{color:var(--muted);font-size:11.5px;margin-top:4px;}
+.cycle-row{display:grid;grid-template-columns:120px 1fr 100px 100px 60px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);}
+.cycle-row.header{font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;background:#F7FAFC;padding:8px;border-radius:4px;}
+.toggle{display:inline-flex;background:#F0F4F8;border-radius:6px;padding:2px;}
+.toggle button{border:none;background:transparent;padding:5px 12px;font-size:12px;border-radius:4px;}
+.toggle button.on{background:#fff;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,0.05);}
+.loading{text-align:center;padding:40px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏥 Hospital Performance Dashboard</h1>
+    <div class="sub">Calendar year tracking • 2020 onwards • Single user</div>
+  </div>
+  <div class="flex">
+    <span class="legend-mini" id="dataStatus">Loading…</span>
+    <button onclick="syncFromCloud()" id="syncBtn" title="Pull latest from Google Sheet">⟳ Sync</button>
+    <button onclick="pushToCloud()" id="pushBtn" title="Push local changes to Google Sheet">☁ Save</button>
+    <button onclick="exportData()">⬇ Backup</button>
+    <button onclick="document.getElementById('importFile').click()">⬆ Restore</button>
+    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" data-panel="dashboard">📊 Dashboard</button>
+  <button class="tab" data-panel="monthly">📝 Monthly Entry</button>
+  <button class="tab" data-panel="ivf">🤰 IVF / IUI / Follicular</button>
+  <button class="tab" data-panel="annual">📅 Annual (Legacy)</button>
+  <button class="tab" data-panel="predictions">🔮 Predictions</button>
+  <button class="tab" data-panel="master">⚙️ Master / Settings</button>
+</div>
+
+<main>
+
+<!-- ============== DASHBOARD ============== -->
+<section class="panel active" id="dashboard">
+
+  <div class="section">
+    <div class="toolbar">
+      <div class="flex">
+        <label>Reference month:</label>
+        <input type="month" id="refMonth">
+        <div class="toggle" id="viewToggle">
+          <button class="on" data-view="monthly">Monthly</button>
+          <button data-view="yoy">YoY</button>
+          <button data-view="ttm">TTM</button>
+        </div>
+      </div>
+      <div class="flex">
+        <label>Years:</label>
+        <select id="yrFrom"></select>
+        <span>→</span>
+        <select id="yrTo"></select>
+      </div>
+    </div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="toolbar">
+      <h2 style="margin:0;">Multi-parameter trend</h2>
+      <div class="flex">
+        <label>Chart:</label>
+        <select id="chartType">
+          <option value="line">Line</option>
+          <option value="bar">Bar</option>
+        </select>
+      </div>
+    </div>
+    <div class="chips" id="paramChips"></div>
+    <div class="help">Click chips to add/remove parameters. Rates (LSCS%, IVF%, IUI%, Follicular%) plot on the right axis.</div>
+    <div class="chart-box tall"><canvas id="mainChart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <h2>Section trends (sparklines)</h2>
+    <div class="spark-grid" id="sparkGrid"></div>
+  </div>
+
+</section>
+
+<!-- ============== MONTHLY ENTRY ============== -->
+<section class="panel" id="monthly">
+  <div class="section">
+    <div class="toolbar">
+      <h2 style="margin:0;">Monthly data entry</h2>
+      <div class="flex">
+        <label>Year:</label>
+        <select id="monthYear"></select>
+        <button class="primary" onclick="saveMonthly()">💾 Save year</button>
+      </div>
+    </div>
+    <div class="note">Enter raw monthly counts. Revenue in <b>₹ Lakhs</b>. Cells turn yellow while editing — click <b>Save year</b> to persist. LSCS rate is calculated automatically.</div>
+    <div class="table-wrap"><table id="monthlyTable"></table></div>
+  </div>
+</section>
+
+<!-- ============== IVF/IUI/FOLLICULAR ============== -->
+<section class="panel" id="ivf">
+  <div class="section">
+    <div class="toolbar">
+      <h2 style="margin:0;">IVF / IUI / Follicular</h2>
+      <div class="toggle" id="procViewToggle">
+        <button class="on" data-view="monthly">Monthly</button>
+        <button data-view="annual">Annual</button>
+      </div>
+    </div>
+    <div class="note">Enter <b>total cycles</b> and <b>total conceived</b> per period. Success rate auto-calculates. If both monthly and annual are entered for the same year, monthly takes priority and annual is treated as legacy fallback.</div>
+
+    <!-- Monthly entry -->
+    <div id="procMonthlyView">
+      <div class="flex" style="margin-bottom:10px;">
+        <label>Year:</label>
+        <select id="procYear"></select>
+        <button class="primary" onclick="saveProcMonthly()">💾 Save year</button>
+      </div>
+      <div class="table-wrap"><table id="procMonthlyTable"></table></div>
+    </div>
+
+    <!-- Annual entry -->
+    <div id="procAnnualView" style="display:none;">
+      <div class="flex" style="margin-bottom:10px;">
+        <button class="primary" onclick="saveProcAnnual()">💾 Save</button>
+      </div>
+      <div class="table-wrap"><table id="procAnnualTable"></table></div>
+      <div class="help" style="margin-top:6px;">Years with monthly data show their auto-summed totals (read-only). Years without monthly data are editable for legacy entry.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== ANNUAL LEGACY ============== -->
+<section class="panel" id="annual">
+  <div class="section">
+    <div class="toolbar">
+      <h2 style="margin:0;">Annual totals (legacy data)</h2>
+      <button class="primary" onclick="saveAnnual()">💾 Save</button>
+    </div>
+    <div class="note">For older years where only annual totals are available. Each value is auto-divided by 12 and shown as <span class="tag">estimated</span> in monthly views. Revenue in <b>₹ Lakhs</b>. If you later enter monthly data for the same year, monthly entries take priority and overwrite the estimate.</div>
+    <div class="table-wrap"><table id="annualTable"></table></div>
+  </div>
+</section>
+
+<!-- ============== PREDICTIONS ============== -->
+<section class="panel" id="predictions">
+  <div class="section">
+    <h2>Expected deliveries — next months</h2>
+    <div class="note"><b>Formula:</b> Predicted deliveries for month <i>M</i> = (mean of last year's same-month deliveries + USG done 4 months back × 1.1) ÷ 2.<br>Example: Prediction for May uses USG count from January × 1.1, averaged with last May's actual delivery count.</div>
+    <div class="table-wrap"><table id="predTable"></table></div>
+  </div>
+  <div class="section">
+    <h2>Prediction accuracy (history)</h2>
+    <div class="help">Compares previous predictions against actuals once both are available.</div>
+    <div class="chart-box"><canvas id="accChart"></canvas></div>
+  </div>
+</section>
+
+<!-- ============== MASTER / SETTINGS ============== -->
+<section class="panel" id="master">
+  <div class="section">
+    <h2>Custom service categories</h2>
+    <div class="note">Add new service categories beyond the built-in ones. They appear automatically as columns in Monthly Entry and as chips on the Dashboard.</div>
+    <div class="flex" style="margin-bottom:12px;">
+      <input type="text" id="newCatName" placeholder="Service name (e.g. Hysteroscopy)" style="flex:1;min-width:200px;">
+      <select id="newCatUnit">
+        <option value="count">Count</option>
+        <option value="lakhs">₹ Lakhs</option>
+      </select>
+      <button class="primary" onclick="addCategory()">+ Add</button>
+    </div>
+    <div id="customCats"></div>
+  </div>
+
+  <div class="section">
+    <h2>Google Sheets sync</h2>
+    <div class="note"><b>Important — to fix "Failed to fetch":</b> your Apps Script Web App must be deployed with <b>Who has access: Anyone</b> (not "Only myself"). The URL itself is the secret — don't share it. Deploy → Manage deployments → pencil → Edit → change access → Deploy.</div>
+    <div class="flex">
+      <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1;min-width:300px;">
+      <select id="autoSync">
+        <option value="off">Auto-sync: Off</option>
+        <option value="onSave">Auto-sync: On every save</option>
+      </select>
+      <button class="primary" onclick="saveSyncConfig()">💾 Save URL</button>
+      <button onclick="testSync()">🔌 Test connection</button>
+    </div>
+    <div id="syncResult" class="help" style="margin-top:8px;"></div>
+    <div class="help" style="margin-top:10px;line-height:1.7;">
+      <b>Workflow:</b> 1) Paste URL → 2) Test connection (must show ✓) → 3) Save URL → 4) Use the <b>⟳ Sync</b> and <b>☁ Save</b> buttons in the header.<br>
+      The URL is stored in your browser's <code>localStorage</code> and persists across sessions.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Currency display</h2>
+    <div class="flex">
+      <label>Auto-format revenue as:</label>
+      <select id="currencyMode">
+        <option value="auto">Auto (Lakhs &lt; 100, Crores ≥ 100)</option>
+        <option value="lakhs">Always Lakhs</option>
+        <option value="crores">Always Crores</option>
+      </select>
+      <button onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Data management</h2>
+    <div class="flex">
+      <button onclick="exportData()">⬇ Download backup (JSON)</button>
+      <button onclick="document.getElementById('importFile2').click()">⬆ Restore from backup</button>
+      <input type="file" id="importFile2" style="display:none" accept=".json" onchange="importData(event)">
+      <button class="danger" onclick="resetAll()">🗑 Reset all data</button>
+    </div>
+    <div class="help" style="margin-top:8px;">Backups are simple JSON files. Use Restore on a new device to bring data across. Reset removes everything — use with caution.</div>
+  </div>
+
+  <div class="section">
+    <h2>About this dashboard</h2>
+    <div style="font-size:12.5px;line-height:1.7;color:var(--muted);">
+      Single-user hospital performance tracker. Data persists locally in browser storage (<code>localStorage</code> when running as a downloaded HTML file). Calendar year basis (Jan–Dec). All counts are integers; revenue in ₹ Lakhs (auto-displayed as Crores when ≥ 100 L).<br>
+      <b>LSCS rate</b> = LSCS ÷ (Normal + LSCS) × 100. <b>IVF/IUI/Follicular success rate</b> = Conceived ÷ Total cycles × 100. <b>TTM</b> = sum of trailing 12 months.<br>
+      <span id="storageBackendInfo" style="font-size:11px;opacity:0.7;"></span>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+// ============== CONSTANTS ==============
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const BASE_FIELDS = [
+  {key:'opd', label:'OPD', cls:'opd', type:'count'},
+  {key:'usg', label:'USG', cls:'usg', type:'count'},
+  {key:'total_del', label:'Total Del', cls:'del', type:'count'},
+  {key:'normal', label:'Normal Del', cls:'del', type:'count'},
+  {key:'lscs', label:'LSCS', cls:'lscs', type:'count'},
+  {key:'lap', label:'Laparoscopy', cls:'lap', type:'count'},
+  {key:'rev', label:'Revenue (₹L)', cls:'rev', type:'lakhs'},
+];
+const PROC_TYPES = {ivf:'IVF', iui:'IUI', fol:'Follicular'};
+const PROC_CLS = {ivf:'ivf', iui:'iui', fol:'fol'};
+const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_MONTH = new Date().getMonth();
+
+// ============== STATE ==============
+let state = {
+  monthly: {},     // { "2024": [{opd,usg,total_del,normal,lscs,lap,rev,...customs}, x12] }
+  annual: {},      // { "2020": {opd,usg,total_del,normal,lscs,lap,rev} }
+  procMonthly: {}, // { "2026": [{ivf,ivf_c,fol,fol_c,iui,iui_c}, x12] }
+  procAnnual: {},  // { "2022": {ivf,ivf_c,fol,fol_c,iui,iui_c} }
+  cycles: [],      // legacy individual cycle records (kept for backward compat)
+  customCats: [],  // [{key,label,unit}]
+  settings: {currency:'auto'},
+};
+
+// ============== SAFE STORAGE ABSTRACTION ==============
+// Uses window.storage (Anthropic sandbox) if available, otherwise falls back
+// to localStorage. Both APIs are wrapped so callers never crash on missing globals.
+const SafeStorage = (function(){
+  const hasWindowStorage = typeof window !== 'undefined'
+    && window.storage
+    && typeof window.storage.get === 'function'
+    && typeof window.storage.set === 'function';
+  const hasLocalStorage = (function(){
+    try { localStorage.setItem('__test', '1'); localStorage.removeItem('__test'); return true; }
+    catch(e){ return false; }
+  })();
+  console.log('SafeStorage backend:', hasWindowStorage ? 'window.storage' : (hasLocalStorage ? 'localStorage' : 'memory'));
+  const memStore = {};
+  return {
+    backend: hasWindowStorage ? 'windowStorage' : (hasLocalStorage ? 'localStorage' : 'memory'),
+    async get(key){
+      try{
+        if(hasWindowStorage){
+          const r = await window.storage.get(key);
+          return r && r.value ? r.value : null;
+        }
+        if(hasLocalStorage) return localStorage.getItem(key);
+        return memStore[key] || null;
+      }catch(e){ return null; }
+    },
+    async set(key, value){
+      try{
+        if(hasWindowStorage) return await window.storage.set(key, value);
+        if(hasLocalStorage){ localStorage.setItem(key, value); return; }
+        memStore[key] = value;
+      }catch(e){ console.warn('Storage set failed:', e); }
+    },
+    async delete(key){
+      try{
+        if(hasWindowStorage) return await window.storage.delete(key);
+        if(hasLocalStorage){ localStorage.removeItem(key); return; }
+        delete memStore[key];
+      }catch(e){}
+    }
+  };
+})();
+let activeParams = new Set(['opd','total_del','rev']);
+let viewMode = 'monthly';
+
+// ============== STORAGE (local) + CLOUD SYNC ==============
+
+// Sync URL & autoSync are stored separately in localStorage so they survive
+// even if window.storage gets wiped, and they NEVER get overwritten by cloud sync.
+function getLocalSyncUrl(){ try{ return (localStorage.getItem('hosp_syncUrl')||'').trim(); }catch(e){ return ''; } }
+function setLocalSyncUrl(u){ try{ localStorage.setItem('hosp_syncUrl', u||''); }catch(e){} }
+function getLocalAutoSync(){ try{ return localStorage.getItem('hosp_autoSync')||'off'; }catch(e){ return 'off'; } }
+function setLocalAutoSync(v){ try{ localStorage.setItem('hosp_autoSync', v||'off'); }catch(e){} }
+
+async function loadState(){
+  // Pull sync prefs from localStorage first (these are client-only)
+  state.settings.syncUrl = getLocalSyncUrl();
+  state.settings.autoSync = getLocalAutoSync();
+
+  // Try local first (fast)
+  let localHasData = false;
+  try{
+    const keys = ['monthly','annual','procMonthly','procAnnual','cycles','customCats','settings'];
+    for(const k of keys){
+      try{
+        const value = await SafeStorage.get('hosp:'+k);
+        if(value){
+          if(k==='settings'){
+            // merge but preserve client-only prefs
+            const cloudSettings = JSON.parse(value);
+            state.settings = Object.assign({}, cloudSettings, {
+              syncUrl: state.settings.syncUrl,
+              autoSync: state.settings.autoSync,
+            });
+          } else {
+            const parsed = JSON.parse(value);
+            state[k] = parsed;
+            // detect whether local actually has any data
+            if(k==='monthly' || k==='annual' || k==='procMonthly' || k==='procAnnual' || k==='customCats'){
+              if(parsed && Object.keys(parsed).length > 0) localHasData = true;
+            }
+            if(k==='cycles' && Array.isArray(parsed) && parsed.length > 0) localHasData = true;
+          }
+        }
+      }catch(e){/* key not found or parse error */}
+    }
+  }catch(e){}
+
+  // Then try cloud — but DO NOT let an empty cloud wipe a non-empty local!
+  if(getSyncUrl()){
+    try{
+      await syncFromCloud(true, /*onlyIfCloudHasData=*/ localHasData);
+      if(localHasData){
+        setStatus('cloud','Local data preserved (cloud merged where data existed)');
+      } else {
+        setStatus('cloud','Synced from Google Sheet');
+      }
+    }catch(e){
+      setStatus('local','Cloud unreachable — using local data ('+e.message+')');
+    }
+  } else {
+    setStatus('local', localHasData ? 'Local data loaded (no cloud sync)' : 'Local only (no Sync URL set)');
+  }
+}
+async function saveKey(k){
+  try{ await SafeStorage.set('hosp:'+k, JSON.stringify(state[k])); }
+  catch(e){ console.warn('Local save failed for', k, e); }
+  // Auto-push if enabled
+  if(state.settings.autoSync==='onSave' && getSyncUrl()){
+    pushToCloud(true).catch(()=>{});
+  }
+}
+
+function setStatus(kind, msg){
+  const colors = {cloud:'#86B6A1', local:'#E8A87C', err:'#D88080', sync:'#D9A93B'};
+  document.getElementById('dataStatus').innerHTML =
+    `<span><i style="background:${colors[kind]||'#888'}"></i>${msg}</span>`;
+}
+
+function getSyncUrl(){
+  // Always prefer localStorage (the source of truth for the URL)
+  const ls = getLocalSyncUrl();
+  if(ls) return ls;
+  return (state.settings.syncUrl || '').trim();
+}
+
+async function fetchJSON(url, opts){
+  // Wrapper with detailed error reporting for Apps Script quirks
+  let res;
+  try{
+    res = await fetch(url, opts);
+  }catch(networkErr){
+    // TypeError: Failed to fetch — usually CORS or network
+    throw new Error(
+      'Network/CORS blocked. Most common causes:\n' +
+      '1) Web App is deployed as "Only myself" — change to "Anyone" (URL stays secret)\n' +
+      '2) URL is wrong (must end in /exec)\n' +
+      '3) You are offline\n\n' +
+      'Original error: ' + networkErr.message
+    );
+  }
+  if(!res.ok){
+    throw new Error('HTTP '+res.status+' '+res.statusText);
+  }
+  const text = await res.text();
+  try{
+    return JSON.parse(text);
+  }catch(e){
+    // Apps Script sometimes returns an HTML login page if access is "Only myself"
+    // and the user isn't authenticated for the cross-origin fetch
+    if(text.includes('<HTML') || text.includes('<html') || text.includes('Sign in')){
+      throw new Error(
+        'Got HTML instead of JSON — Apps Script is asking you to sign in. ' +
+        'Re-deploy your Web App with "Who has access: Anyone" (the URL itself is the secret).'
+      );
+    }
+    throw new Error('Invalid JSON response: '+text.slice(0,200));
+  }
+}
+
+async function syncFromCloud(silent, mergeMode){
+  const url = getSyncUrl();
+  if(!url){ if(!silent) alert('Set the Sync URL in Settings first.'); return; }
+  setStatus('sync','Syncing from cloud…');
+  try{
+    const json = await fetchJSON(url + '?action=load', {method:'GET', redirect:'follow'});
+    if(!json.ok) throw new Error(json.error || 'Unknown server error');
+    const d = json.data || {};
+
+    // Helpers: is a section empty?
+    const isEmptyObj = o => !o || Object.keys(o).length === 0;
+    const isEmptyArr = a => !a || !Array.isArray(a) || a.length === 0;
+
+    // In merge mode: only overwrite a section if the cloud has data for it.
+    // This prevents an empty cloud from wiping local entries the user just made.
+    function adopt(section, isEmpty){
+      if(d[section] === undefined) return; // not sent at all
+      if(mergeMode && isEmpty(d[section])) return; // cloud empty, keep local
+      state[section] = d[section];
+    }
+
+    adopt('monthly',     isEmptyObj);
+    adopt('annual',      isEmptyObj);
+    adopt('procMonthly', isEmptyObj);
+    adopt('procAnnual',  isEmptyObj);
+    adopt('cycles',      isEmptyArr);
+    adopt('customCats',  isEmptyArr);
+
+    if(d.settings){
+      const syncUrl = getLocalSyncUrl();
+      const autoSync = getLocalAutoSync();
+      state.settings = Object.assign({}, d.settings, { syncUrl, autoSync });
+    }
+
+    // persist locally
+    for(const k of ['monthly','annual','procMonthly','procAnnual','cycles','customCats','settings']){
+      try{ await SafeStorage.set('hosp:'+k, JSON.stringify(state[k])); }catch(e){}
+    }
+    setStatus('cloud','Synced • '+new Date().toLocaleTimeString());
+    if(!silent){ toast('Pulled from Google Sheet'); onTabSwitch(document.querySelector('.tab.active').dataset.panel); }
+  }catch(e){
+    setStatus('err','Sync failed');
+    if(!silent) alert('Sync failed:\n\n'+e.message);
+    throw e;
+  }
+}
+
+async function pushToCloud(silent){
+  const url = getSyncUrl();
+  if(!url){ if(!silent) alert('Set the Sync URL in Settings first.'); return; }
+  setStatus('sync','Saving to cloud…');
+  try{
+    // Count what's being sent so the user sees confirmation that data is non-empty
+    const sumMonthlyCells = obj => {
+      let n = 0;
+      Object.values(obj || {}).forEach(arr => {
+        if(Array.isArray(arr)) arr.forEach(m => {
+          Object.values(m || {}).forEach(v => { if(v != null && v !== '') n++; });
+        });
+      });
+      return n;
+    };
+    const summary = {
+      monthly_cells: sumMonthlyCells(state.monthly),
+      annual_years: Object.keys(state.annual || {}).length,
+      procMonthly_cells: sumMonthlyCells(state.procMonthly),
+      procAnnual_years: Object.keys(state.procAnnual || {}).length,
+      cycles: (state.cycles || []).length,
+    };
+    console.log('Pushing to cloud:', summary, state);
+
+    const payload = {
+      action: 'save',
+      data: {
+        monthly: state.monthly,
+        annual: state.annual,
+        procMonthly: state.procMonthly,
+        procAnnual: state.procAnnual,
+        cycles: state.cycles,
+        customCats: state.customCats,
+        settings: Object.fromEntries(
+          Object.entries(state.settings).filter(([k]) => k !== 'syncUrl' && k !== 'autoSync')
+        ),
+      }
+    };
+    const json = await fetchJSON(url, {
+      method:'POST',
+      redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight
+      body: JSON.stringify(payload)
+    });
+    if(!json.ok) throw new Error(json.error || 'Unknown server error');
+    setStatus('cloud','Saved • '+new Date().toLocaleTimeString());
+    if(!silent){
+      const total = summary.monthly_cells + summary.procMonthly_cells + summary.annual_years + summary.procAnnual_years + summary.cycles;
+      if(total === 0){
+        alert('⚠ Pushed to Google Sheet, but the local state had NO data to send.\n\n' +
+          'This usually means:\n' +
+          '• You opened a fresh browser session without Restore-ing your data first, OR\n' +
+          '• An empty cloud sync overwrote local data on page load.\n\n' +
+          'Fix: Click ⬆ Restore in the header and load prefill_data.json (or your last backup), then click ☁ Save again.');
+      } else {
+        toast(`Pushed: ${summary.monthly_cells} monthly cells, ${summary.procMonthly_cells} procedure cells, ${summary.cycles} cycles`);
+      }
+    }
+  }catch(e){
+    setStatus('err','Save failed');
+    if(!silent) alert('Save to cloud failed:\n\n'+e.message+'\n\nLocal copy is safe.');
+    throw e;
+  }
+}
+
+async function testSync(){
+  const url = document.getElementById('syncUrl').value.trim();
+  const out = document.getElementById('syncResult');
+  if(!url){ out.textContent='Paste a URL first.'; out.style.color='#7a2622'; return; }
+  if(!url.endsWith('/exec')){
+    out.innerHTML = '⚠ URL should end with <code>/exec</code>. Yours ends with: ' + url.slice(-20);
+    out.style.color = '#7a5c00';
+    return;
+  }
+  out.textContent = 'Testing…'; out.style.color = '#7a5c00';
+  try{
+    const j = await fetchJSON(url + '?action=ping', {method:'GET', redirect:'follow'});
+    if(j.ok){
+      out.innerHTML = '✓ Connected. Server time: '+j.time+'<br>Click <b>Save</b> below to remember this URL.';
+      out.style.color = '#1c5a3e';
+    } else {
+      out.textContent = '✗ Server responded with error: '+(j.error||'unknown');
+      out.style.color = '#7a2622';
+    }
+  }catch(e){
+    out.innerHTML = '✗ '+e.message.replace(/\n/g,'<br>');
+    out.style.color = '#7a2622';
+  }
+}
+
+function saveSyncConfig(){
+  const url = document.getElementById('syncUrl').value.trim();
+  const auto = document.getElementById('autoSync').value;
+  // Persist to BOTH localStorage (primary) and state.settings
+  setLocalSyncUrl(url);
+  setLocalAutoSync(auto);
+  state.settings.syncUrl = url;
+  state.settings.autoSync = auto;
+  saveKey('settings');
+  toast(url ? 'Sync URL saved ✓' : 'Sync URL cleared');
+  if(url){
+    setStatus('cloud','Sync URL set');
+  } else {
+    setStatus('local','Local only');
+  }
+}
+
+// ============== HELPERS ==============
+function allFields(){ return [...BASE_FIELDS, ...state.customCats]; }
+function emptyMonth(){ const o={}; allFields().forEach(f=>o[f.key]=null); return o; }
+function ensureYear(y){
+  if(!state.monthly[y]){
+    state.monthly[y] = Array.from({length:12}, ()=>emptyMonth());
+  } else {
+    state.monthly[y].forEach(m=>{ allFields().forEach(f=>{ if(!(f.key in m)) m[f.key]=null; }); });
+  }
+}
+function fmtNum(n){ if(n==null||isNaN(n)) return '—'; n=Number(n); return n%1===0 ? n.toLocaleString('en-IN') : n.toLocaleString('en-IN',{maximumFractionDigits:1}); }
+function fmtRev(lakhs){
+  if(lakhs==null||isNaN(lakhs)) return '—';
+  const mode = state.settings.currency || 'auto';
+  if(mode==='crores' || (mode==='auto' && lakhs>=100)){
+    return '₹' + (lakhs/100).toLocaleString('en-IN',{maximumFractionDigits:2}) + ' Cr';
+  }
+  return '₹' + Number(lakhs).toLocaleString('en-IN',{maximumFractionDigits:2}) + ' L';
+}
+function fmtPct(n){ if(n==null||isNaN(n)) return '—'; return n.toFixed(1)+'%'; }
+function pctChange(curr, prev){ if(prev==null||prev===0||curr==null) return null; return ((curr-prev)/prev)*100; }
+function deltaArrow(p){ if(p==null) return ''; if(p>=0) return '▲ '+p.toFixed(1)+'%'; return '▼ '+Math.abs(p).toFixed(1)+'%'; }
+
+// Resolve monthly value: monthly entry > annual/12 estimate
+function resolveMonthly(year, monthIdx, key){
+  ensureYear(year);
+  const v = state.monthly[year][monthIdx][key];
+  if(v!=null && v!=='') return {value:Number(v), estimated:false};
+  const a = state.annual[year];
+  if(a && a[key]!=null && a[key]!=='') return {value:Number(a[key])/12, estimated:true};
+  return {value:null, estimated:false};
+}
+
+// Effective total deliveries: Normal+LSCS if either has a value, otherwise total_del fallback
+function effectiveDeliveries(year, monthIdx){
+  const n = resolveMonthly(year, monthIdx, 'normal').value;
+  const l = resolveMonthly(year, monthIdx, 'lscs').value;
+  if(n!=null || l!=null){
+    return {value: (n||0)+(l||0), source:'split'};
+  }
+  const t = resolveMonthly(year, monthIdx, 'total_del').value;
+  if(t!=null) return {value:t, source:'total'};
+  return {value:null, source:'none'};
+}
+
+// Procedure totals: monthly entry > annual÷12 estimate > legacy cycles array
+function procTotals(year, monthIdx, type){
+  // 1. Direct monthly entry
+  const pm = state.procMonthly[year];
+  if(pm && pm[monthIdx]){
+    const t = pm[monthIdx][type];
+    const c = pm[monthIdx][type+'_c'];
+    if(t!=null && t!==''){
+      return {total:Number(t), conceived:Number(c||0), estimated:false};
+    }
+  }
+  // 2. Annual ÷ 12 estimate
+  const pa = state.procAnnual[year];
+  if(pa && pa[type]!=null && pa[type]!==''){
+    return {
+      total: Number(pa[type])/12,
+      conceived: Number(pa[type+'_c']||0)/12,
+      estimated: true
+    };
+  }
+  // 3. Legacy: count individual cycles array
+  const cycles = state.cycles.filter(c=>c.type===type && c.year===Number(year) && c.month===monthIdx);
+  if(cycles.length>0){
+    return {total:cycles.length, conceived:cycles.filter(c=>c.conceived).length, estimated:false};
+  }
+  return null;
+}
+
+// Annual totals (sum of monthly if available, else direct annual entry)
+function procAnnualTotals(year, type){
+  const pm = state.procMonthly[year];
+  if(pm){
+    let t=0, c=0, hasAny=false;
+    for(let m=0;m<12;m++){
+      if(pm[m] && pm[m][type]!=null && pm[m][type]!==''){
+        t += Number(pm[m][type]);
+        c += Number(pm[m][type+'_c']||0);
+        hasAny = true;
+      }
+    }
+    if(hasAny) return {total:t, conceived:c, source:'monthly'};
+  }
+  const pa = state.procAnnual[year];
+  if(pa && pa[type]!=null && pa[type]!==''){
+    return {total:Number(pa[type]), conceived:Number(pa[type+'_c']||0), source:'annual'};
+  }
+  // legacy
+  const cycles = state.cycles.filter(c=>c.type===type && c.year===Number(year));
+  if(cycles.length>0){
+    return {total:cycles.length, conceived:cycles.filter(c=>c.conceived).length, source:'cycles'};
+  }
+  return null;
+}
+
+function allYears(){
+  const ys = new Set();
+  Object.keys(state.monthly).forEach(y=>ys.add(Number(y)));
+  Object.keys(state.annual).forEach(y=>ys.add(Number(y)));
+  Object.keys(state.procMonthly).forEach(y=>ys.add(Number(y)));
+  Object.keys(state.procAnnual).forEach(y=>ys.add(Number(y)));
+  state.cycles.forEach(c=>ys.add(c.year));
+  ys.add(CURRENT_YEAR);
+  return [...ys].sort((a,b)=>a-b);
+}
+
+// Pickable years for entry dropdowns — always include 2020..currentYear+1
+// plus any existing years outside that range (in case data was loaded for older/newer years).
+function pickableYears(){
+  const ys = new Set();
+  for(let y = 2020; y <= CURRENT_YEAR + 1; y++) ys.add(y);
+  allYears().forEach(y => ys.add(y));
+  return [...ys].sort((a,b) => a-b);
+}
+
+// ============== TABS ==============
+document.getElementById('tabs').addEventListener('click', e=>{
+  if(e.target.classList.contains('tab')){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById(e.target.dataset.panel).classList.add('active');
+    onTabSwitch(e.target.dataset.panel);
+  }
+});
+function onTabSwitch(p){
+  if(p==='dashboard') renderDashboard();
+  if(p==='monthly') renderMonthly();
+  if(p==='ivf') renderIVF();
+  if(p==='annual') renderAnnual();
+  if(p==='predictions') renderPredictions();
+  if(p==='master') renderMaster();
+}
+
+// ============== DASHBOARD ==============
+function buildParamChips(){
+  const wrap = document.getElementById('paramChips');
+  const items = [
+    ...BASE_FIELDS.map(f=>({key:f.key,label:f.label,cls:f.cls})),
+    {key:'lscs_rate', label:'LSCS rate %', cls:'lscsr'},
+    {key:'ivf', label:'IVF cycles', cls:'ivf'},
+    {key:'ivf_rate', label:'IVF success %', cls:'ivfr'},
+    {key:'iui', label:'IUI cycles', cls:'iui'},
+    {key:'iui_rate', label:'IUI success %', cls:'iuir'},
+    {key:'fol', label:'Follicular', cls:'fol'},
+    {key:'fol_rate', label:'Follicular success %', cls:'folr'},
+    ...state.customCats.map(c=>({key:c.key,label:c.label,cls:'opd'})),
+  ];
+  wrap.innerHTML='';
+  items.forEach(it=>{
+    const c = document.createElement('span');
+    c.className = 'chip '+it.cls + (activeParams.has(it.key)?' on':'');
+    c.textContent = it.label;
+    c.onclick = ()=>{
+      if(activeParams.has(it.key)) activeParams.delete(it.key);
+      else activeParams.add(it.key);
+      buildParamChips();
+      drawMainChart();
+    };
+    wrap.appendChild(c);
+  });
+}
+
+function buildYearSelectors(){
+  const yrs = allYears();
+  const pYears = pickableYears();
+  const fy = document.getElementById('yrFrom'), ty = document.getElementById('yrTo');
+  const prevFrom = fy.value, prevTo = ty.value;
+  fy.innerHTML=''; ty.innerHTML='';
+  pYears.forEach(y=>{
+    fy.innerHTML += `<option value="${y}">${y}</option>`;
+    ty.innerHTML += `<option value="${y}">${y}</option>`;
+  });
+  // Default: span the years that actually have data (compact view)
+  fy.value = prevFrom && pYears.includes(Number(prevFrom)) ? prevFrom : yrs[0];
+  ty.value = prevTo && pYears.includes(Number(prevTo)) ? prevTo : yrs[yrs.length-1];
+  fy.onchange = ty.onchange = ()=>{drawMainChart(); renderSparks();};
+
+  // Monthly entry year selector — show full pickable range so user can enter past/future years
+  const my = document.getElementById('monthYear');
+  const prevVal = my.value;
+  my.innerHTML='';
+  pYears.forEach(y=>my.innerHTML += `<option value="${y}">${y}</option>`);
+  my.value = (prevVal && pYears.includes(Number(prevVal))) ? prevVal : CURRENT_YEAR;
+  my.onchange = renderMonthly;
+}
+
+function renderKPIs(){
+  const ref = document.getElementById('refMonth').value;
+  const [y,m] = ref.split('-').map(Number);
+  const monthIdx = m-1;
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML='';
+
+  function kpiCard(cls, label, value, delta, sub){
+    const d = document.createElement('div');
+    d.className = 'kpi '+cls;
+    d.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div><div class="delta">${delta||''}${sub?(' • '+sub):''}</div>`;
+    grid.appendChild(d);
+  }
+
+  function compare(key, isRev){
+    const cur = resolveMonthly(y, monthIdx, key).value;
+    const prv = resolveMonthly(y-1, monthIdx, key).value;
+    if(viewMode==='ttm'){
+      let curT=0, prvT=0, curN=0, prvN=0;
+      for(let i=0;i<12;i++){
+        const dt = new Date(y, monthIdx-i, 1);
+        const dt2 = new Date(y-1, monthIdx-i, 1);
+        const v1 = resolveMonthly(dt.getFullYear(), dt.getMonth(), key).value;
+        const v2 = resolveMonthly(dt2.getFullYear(), dt2.getMonth(), key).value;
+        if(v1!=null){curT+=v1;curN++;}
+        if(v2!=null){prvT+=v2;prvN++;}
+      }
+      return {cur:curN?curT:null, prv:prvN?prvT:null};
+    }
+    if(viewMode==='yoy'){
+      let curT=0, prvT=0, curN=0, prvN=0;
+      for(let i=0;i<=monthIdx;i++){
+        const v1 = resolveMonthly(y, i, key).value;
+        const v2 = resolveMonthly(y-1, i, key).value;
+        if(v1!=null){curT+=v1;curN++;}
+        if(v2!=null){prvT+=v2;prvN++;}
+      }
+      return {cur:curN?curT:null, prv:prvN?prvT:null};
+    }
+    return {cur, prv};
+  }
+
+  // OPD
+  let r = compare('opd');
+  kpiCard('opd', 'OPD', fmtNum(r.cur), deltaArrow(pctChange(r.cur, r.prv)), viewMode.toUpperCase());
+
+  // USG
+  r = compare('usg');
+  kpiCard('usg', 'USG', fmtNum(r.cur), deltaArrow(pctChange(r.cur, r.prv)), viewMode.toUpperCase());
+
+  // Deliveries (Total Del — uses Normal+LSCS split if present, else total_del fallback)
+  const eff = effectiveDeliveries(y, monthIdx);
+  const n = resolveMonthly(y, monthIdx, 'normal').value || 0;
+  const ls = resolveMonthly(y, monthIdx, 'lscs').value || 0;
+  const lsRate = (n+ls)>0 ? (ls/(n+ls)*100) : null;
+
+  // Year-over-year for deliveries via effective values
+  function compareEff(){
+    if(viewMode==='ttm'){
+      let curT=0,prvT=0,curN=0,prvN=0;
+      for(let i=0;i<12;i++){
+        const v1 = effectiveDeliveries(y, monthIdx-i).value;
+        const v2 = effectiveDeliveries(y-1, monthIdx-i).value;
+        if(v1!=null){curT+=v1;curN++;}
+        if(v2!=null){prvT+=v2;prvN++;}
+      }
+      return {cur:curN?curT:null, prv:prvN?prvT:null};
+    }
+    if(viewMode==='yoy'){
+      let curT=0,prvT=0,curN=0,prvN=0;
+      for(let i=0;i<=monthIdx;i++){
+        const v1 = effectiveDeliveries(y, i).value;
+        const v2 = effectiveDeliveries(y-1, i).value;
+        if(v1!=null){curT+=v1;curN++;}
+        if(v2!=null){prvT+=v2;prvN++;}
+      }
+      return {cur:curN?curT:null, prv:prvN?prvT:null};
+    }
+    return {cur:eff.value, prv:effectiveDeliveries(y-1, monthIdx).value};
+  }
+  const totDelView = compareEff();
+  kpiCard('del','Deliveries', fmtNum(totDelView.cur), deltaArrow(pctChange(totDelView.cur, totDelView.prv)), viewMode.toUpperCase());
+  kpiCard('lscs','LSCS rate', fmtPct(lsRate), '', `N:${fmtNum(n)} • LSCS:${fmtNum(ls)}`);
+
+  // Laparoscopy
+  r = compare('lap');
+  kpiCard('lap','Laparoscopy', fmtNum(r.cur), deltaArrow(pctChange(r.cur, r.prv)), viewMode.toUpperCase());
+
+  // IVF / IUI / Fol
+  ['ivf','iui','fol'].forEach(t=>{
+    const tot = procTotals(y, monthIdx, t);
+    const totals = tot ? tot.total : 0;
+    const conc = tot ? tot.conceived : 0;
+    const rate = totals? (conc/totals*100) : null;
+    kpiCard(t, PROC_TYPES[t]+' success', fmtPct(rate), '', `${conc}/${totals} cycles`);
+  });
+
+  // Revenue
+  r = compare('rev', true);
+  kpiCard('rev','Revenue', fmtRev(r.cur), deltaArrow(pctChange(r.cur, r.prv)), viewMode.toUpperCase());
+
+  // Prediction for next month
+  const next = new Date(y, monthIdx+1, 1);
+  const pred = predictDeliveries(next.getFullYear(), next.getMonth());
+  kpiCard('pred', `Next mo. (${MONTHS[next.getMonth()]} ${next.getFullYear()})`, pred?fmtNum(Math.round(pred.value)):'—', 'predicted deliveries', pred?pred.detail:'insufficient data');
+}
+
+function drawMainChart(){
+  const yrs = allYears();
+  const fy = Number(document.getElementById('yrFrom').value || yrs[0]);
+  const ty = Number(document.getElementById('yrTo').value || yrs[yrs.length-1]);
+  const labels = [];
+  const points = []; // {y, m}
+  for(let y=fy; y<=ty; y++){
+    for(let m=0; m<12; m++){
+      labels.push(MONTHS[m]+' '+String(y).slice(-2));
+      points.push({y, m});
+    }
+  }
+
+  function paramSeries(key){
+    if(key==='total_del'){
+      return points.map(p=>effectiveDeliveries(p.y,p.m).value);
+    }
+    return points.map(p=>{
+      if(key==='lscs_rate'){
+        const n = resolveMonthly(p.y,p.m,'normal').value || 0;
+        const l = resolveMonthly(p.y,p.m,'lscs').value || 0;
+        return (n+l)? (l/(n+l)*100) : null;
+      }
+      if(key==='ivf'||key==='iui'||key==='fol'){
+        const t = procTotals(p.y,p.m,key);
+        return t? t.total : null;
+      }
+      if(key==='ivf_rate'||key==='iui_rate'||key==='fol_rate'){
+        const t = procTotals(p.y,p.m,key.split('_')[0]);
+        return t && t.total? (t.conceived/t.total*100) : null;
+      }
+      return resolveMonthly(p.y,p.m,key).value;
+    });
+  }
+
+  const colorMap = {
+    opd:'#5BA8C4',usg:'#6FB89A',normal:'#E07F77',lscs:'#D89B6E',lap:'#7B85C4',rev:'#5FBE92',
+    lscs_rate:'#A872A4', ivf:'#A872A4', iui:'#C77777', fol:'#8AAA5C',
+    ivf_rate:'#7E4A7C', iui_rate:'#9A4F4F', fol_rate:'#5C7A3D',
+  };
+  const labelMap = {
+    opd:'OPD',usg:'USG',normal:'Normal del',lscs:'LSCS',lap:'Laparoscopy',rev:'Revenue (₹L)',
+    lscs_rate:'LSCS %', ivf:'IVF cycles', iui:'IUI cycles', fol:'Follicular',
+    ivf_rate:'IVF success %', iui_rate:'IUI success %', fol_rate:'Follicular success %',
+  };
+  state.customCats.forEach(c=>{ colorMap[c.key]='#5BA8C4'; labelMap[c.key]=c.label; });
+
+  const isRate = k=>k.endsWith('_rate');
+  const datasets = [...activeParams].map(k=>({
+    label: labelMap[k] || k,
+    data: paramSeries(k),
+    borderColor: colorMap[k] || '#7B85C4',
+    backgroundColor: (colorMap[k] || '#7B85C4')+'33',
+    borderWidth: 2,
+    tension: 0.3,
+    spanGaps: true,
+    yAxisID: isRate(k) ? 'y1' : 'y',
+    pointRadius: 2,
+  }));
+
+  if(window._mainChart) window._mainChart.destroy();
+  const ctx = document.getElementById('mainChart');
+  const type = document.getElementById('chartType').value;
+  window._mainChart = new Chart(ctx, {
+    type,
+    data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{position:'bottom', labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:c=>{
+          const v = c.parsed.y;
+          if(v==null) return c.dataset.label+': —';
+          const isR = c.dataset.yAxisID==='y1';
+          return c.dataset.label+': '+(isR? v.toFixed(1)+'%' : fmtNum(v));
+        }}},
+      },
+      scales:{
+        x:{ticks:{font:{size:10},maxRotation:60,minRotation:45},grid:{display:false}},
+        y:{beginAtZero:true,ticks:{font:{size:11}},grid:{color:'#EDF2F7'}},
+        y1:{beginAtZero:true,position:'right',ticks:{font:{size:11},callback:v=>v+'%'},grid:{display:false}, max: 100},
+      }
+    }
+  });
+}
+
+function renderSparks(){
+  const wrap = document.getElementById('sparkGrid');
+  wrap.innerHTML='';
+  const yrs = allYears();
+  const fy = Number(document.getElementById('yrFrom').value || yrs[0]);
+  const ty = Number(document.getElementById('yrTo').value || yrs[yrs.length-1]);
+  const points = [];
+  for(let y=fy; y<=ty; y++) for(let m=0;m<12;m++) points.push({y,m});
+
+  const sections = [
+    {key:'opd',label:'OPD',color:'#5BA8C4'},
+    {key:'usg',label:'USG',color:'#6FB89A'},
+    {key:'total_del',label:'Total deliveries',color:'#E07F77',deliveries:true},
+    {key:'normal',label:'Normal deliveries',color:'#E07F77'},
+    {key:'lscs',label:'LSCS',color:'#D89B6E'},
+    {key:'lap',label:'Laparoscopy',color:'#7B85C4'},
+    {key:'rev',label:'Revenue (₹L)',color:'#5FBE92'},
+    {key:'ivf',label:'IVF cycles',color:'#A872A4',proc:true},
+    {key:'iui',label:'IUI cycles',color:'#C77777',proc:true},
+    {key:'fol',label:'Follicular',color:'#8AAA5C',proc:true},
+  ];
+  state.customCats.forEach(c=>sections.push({key:c.key,label:c.label,color:'#5BA8C4'}));
+
+  sections.forEach((s,idx)=>{
+    const data = points.map(p=>{
+      if(s.proc){ const t=procTotals(p.y,p.m,s.key); return t?t.total:null; }
+      if(s.deliveries){ return effectiveDeliveries(p.y,p.m).value; }
+      return resolveMonthly(p.y,p.m,s.key).value;
+    });
+    const valid = data.filter(v=>v!=null);
+    const last = valid[valid.length-1];
+    const prev = valid[valid.length-13];
+    const change = pctChange(last, prev);
+    const div = document.createElement('div');
+    div.className='spark';
+    const fmt = s.key==='rev' ? fmtRev : fmtNum;
+    div.innerHTML = `<div class="stitle">${s.label}</div>
+      <div class="sval">${last!=null?fmt(last):'—'}</div>
+      <div style="font-size:11px;color:${change>=0?'#1c5a3e':'#7a2622'};">${change!=null?deltaArrow(change)+' vs 12mo ago':''}</div>
+      <canvas id="sp_${idx}"></canvas>`;
+    wrap.appendChild(div);
+    setTimeout(()=>{
+      const ctx = document.getElementById('sp_'+idx);
+      if(!ctx) return;
+      new Chart(ctx,{type:'line',data:{labels:points.map(p=>MONTHS[p.m]+' '+p.y),datasets:[{data,borderColor:s.color,backgroundColor:s.color+'33',borderWidth:1.5,fill:true,pointRadius:0,tension:0.3,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},elements:{line:{borderJoinStyle:'round'}}}});
+    },10);
+  });
+}
+
+function renderDashboard(){
+  // default ref month = latest month with any data, else current
+  if(!document.getElementById('refMonth').value){
+    document.getElementById('refMonth').value = `${CURRENT_YEAR}-${String(CURRENT_MONTH+1).padStart(2,'0')}`;
+  }
+  buildYearSelectors();
+  buildParamChips();
+  renderKPIs();
+  drawMainChart();
+  renderSparks();
+}
+
+// View toggle
+document.getElementById('viewToggle').addEventListener('click', e=>{
+  if(e.target.tagName==='BUTTON'){
+    document.querySelectorAll('#viewToggle button').forEach(b=>b.classList.remove('on'));
+    e.target.classList.add('on');
+    viewMode = e.target.dataset.view;
+    renderKPIs();
+  }
+});
+document.getElementById('refMonth').addEventListener('change', renderKPIs);
+document.getElementById('chartType').addEventListener('change', drawMainChart);
+
+// ============== MONTHLY ENTRY ==============
+function renderMonthly(){
+  // Ensure the year dropdown has the full pickable range (in case dashboard hasn't run yet)
+  const my = document.getElementById('monthYear');
+  const pYears = pickableYears();
+  const currentVal = my.value;
+  if(my.options.length !== pYears.length){
+    my.innerHTML='';
+    pYears.forEach(y=>my.innerHTML += `<option value="${y}">${y}</option>`);
+    my.value = (currentVal && pYears.includes(Number(currentVal))) ? currentVal : CURRENT_YEAR;
+    my.onchange = renderMonthly;
+  }
+  const y = Number(my.value || CURRENT_YEAR);
+  ensureYear(y);
+  const fields = allFields();
+  const t = document.getElementById('monthlyTable');
+  let html = '<thead><tr><th>Month</th>';
+  fields.forEach(f=>{ html += `<th>${f.label}</th>`; });
+  html += '<th>LSCS %</th><th>Total Del</th></tr></thead><tbody>';
+  for(let m=0;m<12;m++){
+    html += `<tr><td><b>${MONTHS[m]} ${y}</b></td>`;
+    fields.forEach(f=>{
+      const v = state.monthly[y][m][f.key];
+      const annual = state.annual[y] && state.annual[y][f.key];
+      const isEst = (v==null||v==='') && annual!=null;
+      const showVal = (v==null||v==='') ? '' : v;
+      const cls = isEst ? 'estimated' : '';
+      const placeholder = isEst ? (Number(annual)/12).toFixed(1)+' (est)' : '';
+      html += `<td class="${cls}"><input type="number" step="0.01" data-y="${y}" data-m="${m}" data-k="${f.key}" value="${showVal}" placeholder="${placeholder}"></td>`;
+    });
+    const n = resolveMonthly(y,m,'normal').value || 0;
+    const ls = resolveMonthly(y,m,'lscs').value || 0;
+    const tot = n+ls;
+    html += `<td>${tot?fmtPct(ls/tot*100):'—'}</td><td>${tot||'—'}</td>`;
+    html += '</tr>';
+  }
+  // totals
+  html += '<tr style="background:#F0F4F8;font-weight:600;"><td>Year total</td>';
+  fields.forEach(f=>{
+    let s = 0, has=false;
+    for(let m=0;m<12;m++){
+      const r = resolveMonthly(y,m,f.key);
+      if(r.value!=null){ s+=r.value; has=true; }
+    }
+    html += `<td style="text-align:right;padding-right:12px;">${has? (f.type==='lakhs'?fmtRev(s):fmtNum(s)) : '—'}</td>`;
+  });
+  let nT=0,lT=0;
+  for(let m=0;m<12;m++){
+    nT += resolveMonthly(y,m,'normal').value || 0;
+    lT += resolveMonthly(y,m,'lscs').value || 0;
+  }
+  html += `<td>${(nT+lT)?fmtPct(lT/(nT+lT)*100):'—'}</td><td>${nT+lT||'—'}</td>`;
+  html += '</tr></tbody>';
+  t.innerHTML = html;
+}
+
+function saveMonthly(){
+  const inputs = document.querySelectorAll('#monthlyTable input');
+  inputs.forEach(i=>{
+    const y = Number(i.dataset.y), m = Number(i.dataset.m), k = i.dataset.k;
+    ensureYear(y);
+    const v = i.value.trim();
+    state.monthly[y][m][k] = v===''?null:Number(v);
+  });
+  saveKey('monthly');
+  renderMonthly();
+  toast('Saved');
+}
+
+// ============== IVF/IUI/FOLLICULAR ==============
+let procView = 'monthly';
+
+function renderIVF(){
+  // Year dropdown — full pickable range
+  const sel = document.getElementById('procYear');
+  const yrs = pickableYears();
+  const prevVal = sel.value;
+  sel.innerHTML = '';
+  yrs.forEach(y=>sel.innerHTML += `<option value="${y}">${y}</option>`);
+  sel.value = (prevVal && yrs.includes(Number(prevVal))) ? prevVal : CURRENT_YEAR;
+  sel.onchange = renderProcMonthly;
+
+  document.getElementById('procMonthlyView').style.display = procView==='monthly' ? '' : 'none';
+  document.getElementById('procAnnualView').style.display = procView==='annual' ? '' : 'none';
+
+  if(procView==='monthly') renderProcMonthly();
+  else renderProcAnnual();
+}
+
+function ensureProcYear(y){
+  if(!state.procMonthly[y]){
+    state.procMonthly[y] = Array.from({length:12}, ()=>({ivf:null,ivf_c:null,fol:null,fol_c:null,iui:null,iui_c:null}));
+  }
+}
+
+function renderProcMonthly(){
+  const y = Number(document.getElementById('procYear').value || CURRENT_YEAR);
+  ensureProcYear(y);
+  const t = document.getElementById('procMonthlyTable');
+  let html = `<thead><tr>
+    <th rowspan="2">Month</th>
+    <th colspan="3" style="background:#F0E6F4;">IVF</th>
+    <th colspan="3" style="background:#E8F0DC;">Follicular (Plain)</th>
+    <th colspan="3" style="background:#FAE0E0;">IUI</th>
+  </tr><tr>
+    <th>Cycles</th><th>Conceived</th><th>%</th>
+    <th>Cycles</th><th>Conceived</th><th>%</th>
+    <th>Cycles</th><th>Conceived</th><th>%</th>
+  </tr></thead><tbody>`;
+
+  const types = ['ivf','fol','iui'];
+  for(let m=0;m<12;m++){
+    const row = state.procMonthly[y][m];
+    html += `<tr><td><b>${MONTHS[m]} ${y}</b></td>`;
+    types.forEach(typ=>{
+      const tot = row[typ];
+      const conc = row[typ+'_c'];
+      const totVal = (tot==null||tot==='')?'':tot;
+      const concVal = (conc==null||conc==='')?'':conc;
+      const pct = (tot && Number(tot)>0) ? ((Number(conc||0)/Number(tot))*100).toFixed(1)+'%' : '—';
+      html += `<td><input type="number" min="0" step="1" data-y="${y}" data-m="${m}" data-typ="${typ}" data-f="t" value="${totVal}"></td>`;
+      html += `<td><input type="number" min="0" step="1" data-y="${y}" data-m="${m}" data-typ="${typ}" data-f="c" value="${concVal}"></td>`;
+      html += `<td>${pct}</td>`;
+    });
+    html += '</tr>';
+  }
+
+  // Year totals row
+  html += '<tr style="background:#F0F4F8;font-weight:600;"><td>Year total</td>';
+  types.forEach(typ=>{
+    const ann = procAnnualTotals(y, typ);
+    if(ann){
+      const pct = ann.total>0 ? (ann.conceived/ann.total*100).toFixed(1)+'%' : '—';
+      html += `<td style="text-align:right;padding-right:12px;">${fmtNum(Math.round(ann.total))}</td>`;
+      html += `<td style="text-align:right;padding-right:12px;">${fmtNum(Math.round(ann.conceived))}</td>`;
+      html += `<td>${pct}</td>`;
+    } else {
+      html += '<td>—</td><td>—</td><td>—</td>';
+    }
+  });
+  html += '</tr></tbody>';
+  t.innerHTML = html;
+}
+
+function saveProcMonthly(){
+  const inputs = document.querySelectorAll('#procMonthlyTable input');
+  inputs.forEach(i=>{
+    const y = Number(i.dataset.y), m = Number(i.dataset.m);
+    const typ = i.dataset.typ, f = i.dataset.f;
+    ensureProcYear(y);
+    const v = i.value.trim();
+    const key = f==='t' ? typ : typ+'_c';
+    state.procMonthly[y][m][key] = v===''?null:Number(v);
+  });
+  saveKey('procMonthly');
+  renderProcMonthly();
+  toast('Procedures saved');
+}
+
+function renderProcAnnual(){
+  const t = document.getElementById('procAnnualTable');
+  let html = `<thead><tr>
+    <th rowspan="2">Year</th>
+    <th colspan="3" style="background:#F0E6F4;">IVF</th>
+    <th colspan="3" style="background:#E8F0DC;">Follicular (Plain)</th>
+    <th colspan="3" style="background:#FAE0E0;">IUI</th>
+    <th rowspan="2">Source</th>
+  </tr><tr>
+    <th>Cycles</th><th>Conceived</th><th>%</th>
+    <th>Cycles</th><th>Conceived</th><th>%</th>
+    <th>Cycles</th><th>Conceived</th><th>%</th>
+  </tr></thead><tbody>`;
+
+  const types = ['ivf','fol','iui'];
+  const pYears = pickableYears();
+  for(const y of pYears){
+    const hasMonthly = !!state.procMonthly[y] && state.procMonthly[y].some(r=>Object.values(r).some(v=>v!=null&&v!==''));
+    html += `<tr><td><b>${y}</b></td>`;
+    types.forEach(typ=>{
+      if(hasMonthly){
+        const ann = procAnnualTotals(y, typ);
+        if(ann){
+          const pct = ann.total>0 ? (ann.conceived/ann.total*100).toFixed(1)+'%' : '—';
+          html += `<td style="background:#F8FAFC;color:#666;padding-right:12px;">${fmtNum(Math.round(ann.total))}</td>`;
+          html += `<td style="background:#F8FAFC;color:#666;padding-right:12px;">${fmtNum(Math.round(ann.conceived))}</td>`;
+          html += `<td style="background:#F8FAFC;color:#666;">${pct}</td>`;
+        } else {
+          html += '<td style="background:#F8FAFC;">—</td><td style="background:#F8FAFC;">—</td><td style="background:#F8FAFC;">—</td>';
+        }
+      } else {
+        const a = state.procAnnual[y] || {};
+        const tot = a[typ]==null?'':a[typ];
+        const conc = a[typ+'_c']==null?'':a[typ+'_c'];
+        const pct = (tot!=='' && Number(tot)>0) ? ((Number(conc||0)/Number(tot))*100).toFixed(1)+'%' : '—';
+        html += `<td><input type="number" min="0" step="1" data-y="${y}" data-typ="${typ}" data-f="t" value="${tot}"></td>`;
+        html += `<td><input type="number" min="0" step="1" data-y="${y}" data-typ="${typ}" data-f="c" value="${conc}"></td>`;
+        html += `<td>${pct}</td>`;
+      }
+    });
+    html += `<td>${hasMonthly?'<span class="tag ok">monthly</span>':'<span class="tag">annual</span>'}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  t.innerHTML = html;
+}
+
+function saveProcAnnual(){
+  const inputs = document.querySelectorAll('#procAnnualTable input');
+  inputs.forEach(i=>{
+    const y = i.dataset.y, typ = i.dataset.typ, f = i.dataset.f;
+    if(!state.procAnnual[y]) state.procAnnual[y] = {};
+    const v = i.value.trim();
+    const key = f==='t' ? typ : typ+'_c';
+    if(v==='') delete state.procAnnual[y][key];
+    else state.procAnnual[y][key] = Number(v);
+  });
+  // remove empty year objects
+  Object.keys(state.procAnnual).forEach(y=>{
+    if(Object.keys(state.procAnnual[y]).length===0) delete state.procAnnual[y];
+  });
+  saveKey('procAnnual');
+  renderProcAnnual();
+  toast('Annual procedures saved');
+}
+
+// View toggle
+document.getElementById('procViewToggle').addEventListener('click', e=>{
+  if(e.target.tagName==='BUTTON'){
+    document.querySelectorAll('#procViewToggle button').forEach(b=>b.classList.remove('on'));
+    e.target.classList.add('on');
+    procView = e.target.dataset.view;
+    renderIVF();
+  }
+});
+
+// ============== ANNUAL LEGACY ==============
+function renderAnnual(){
+  const t = document.getElementById('annualTable');
+  const fields = BASE_FIELDS;
+  let html = '<thead><tr><th>Year</th>';
+  fields.forEach(f=>html += `<th>${f.label} (annual)</th>`);
+  html += '<th>Has monthly?</th></tr></thead><tbody>';
+  // years 2020 to current+1 (so next-year budgets/targets can be entered too)
+  const pYears = pickableYears();
+  for(const y of pYears){
+    const a = state.annual[y] || {};
+    const hasMonthly = state.monthly[y] && state.monthly[y].some(m=>Object.values(m).some(v=>v!=null&&v!==''));
+    html += `<tr><td><b>${y}</b></td>`;
+    fields.forEach(f=>{
+      const v = a[f.key]==null?'':a[f.key];
+      html += `<td><input type="number" step="0.01" data-y="${y}" data-k="${f.key}" value="${v}" placeholder="0"></td>`;
+    });
+    html += `<td>${hasMonthly?'<span class="tag ok">monthly entered</span>':'<span class="tag">annual only</span>'}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  t.innerHTML = html;
+}
+function saveAnnual(){
+  const inputs = document.querySelectorAll('#annualTable input');
+  inputs.forEach(i=>{
+    const y = i.dataset.y, k = i.dataset.k;
+    if(!state.annual[y]) state.annual[y]={};
+    const v = i.value.trim();
+    if(v==='') delete state.annual[y][k]; else state.annual[y][k] = Number(v);
+  });
+  // remove empty year objects
+  Object.keys(state.annual).forEach(y=>{ if(Object.keys(state.annual[y]).length===0) delete state.annual[y]; });
+  saveKey('annual');
+  renderAnnual();
+  toast('Annual data saved');
+}
+
+// ============== PREDICTIONS ==============
+function predictDeliveries(year, monthIdx){
+  // Last year same-month delivery total (uses Normal+LSCS if split, else Total Del)
+  const ly = year-1;
+  const lyEff = effectiveDeliveries(ly, monthIdx);
+  const lyTotal = lyEff.value;
+
+  // USG done 4 months back
+  const usgDate = new Date(year, monthIdx-4, 1);
+  const usgVal = resolveMonthly(usgDate.getFullYear(), usgDate.getMonth(), 'usg').value;
+  const usgFactor = usgVal!=null ? usgVal*1.1 : null;
+
+  if(lyTotal==null && usgFactor==null) return null;
+  let value, detail;
+  if(lyTotal!=null && usgFactor!=null){
+    value = (lyTotal + usgFactor) / 2;
+    detail = `(${lyTotal.toFixed(0)} last yr + ${usgFactor.toFixed(0)} from USG) ÷ 2`;
+  } else if(lyTotal!=null){
+    value = lyTotal;
+    detail = `last year only (no USG data)`;
+  } else {
+    value = usgFactor;
+    detail = `USG×1.1 only (no last yr data)`;
+  }
+
+  // also project LSCS rate forward = average of last 3 months actual lscs/total
+  let lsr=0,lsn=0;
+  for(let i=1;i<=3;i++){
+    const dt = new Date(year, monthIdx-i, 1);
+    const n = resolveMonthly(dt.getFullYear(), dt.getMonth(),'normal').value || 0;
+    const l = resolveMonthly(dt.getFullYear(), dt.getMonth(),'lscs').value || 0;
+    if(n+l>0){ lsr += l/(n+l); lsn++; }
+  }
+  const projLscsRate = lsn ? (lsr/lsn*100) : null;
+
+  return {value, detail, usg:usgVal, lyTotal, projLscsRate};
+}
+
+function renderPredictions(){
+  const t = document.getElementById('predTable');
+  let html = '<thead><tr><th>Month</th><th>USG (4 mo back)</th><th>USG × 1.1</th><th>Last yr deliveries</th><th>Predicted deliveries</th><th>Proj. LSCS rate</th><th>Actual</th><th>Variance</th></tr></thead><tbody>';
+  // show 6 months back to 6 months ahead
+  for(let i=-6;i<=6;i++){
+    const dt = new Date(CURRENT_YEAR, CURRENT_MONTH+i, 1);
+    const y = dt.getFullYear(), m = dt.getMonth();
+    const p = predictDeliveries(y, m);
+    const usgDt = new Date(y, m-4, 1);
+    const usgV = resolveMonthly(usgDt.getFullYear(), usgDt.getMonth(),'usg').value;
+    const lyEff = effectiveDeliveries(y-1, m);
+    const ly = lyEff.value;
+
+    const actEff = effectiveDeliveries(y, m);
+    const actual = actEff.value;
+    const variance = (p && actual!=null) ? pctChange(actual, p.value) : null;
+    const isFuture = (y>CURRENT_YEAR) || (y===CURRENT_YEAR && m>CURRENT_MONTH);
+    const rowStyle = isFuture ? 'background:#FFF8E1;' : '';
+    html += `<tr style="${rowStyle}">
+      <td><b>${MONTHS[m]} ${y}</b>${isFuture?' <span class="tag">forecast</span>':''}</td>
+      <td>${usgV!=null?fmtNum(Math.round(usgV)):'—'} <span style="color:#888;font-size:10px;">(${MONTHS[usgDt.getMonth()]} ${usgDt.getFullYear()})</span></td>
+      <td>${usgV!=null?fmtNum(Math.round(usgV*1.1)):'—'}</td>
+      <td>${ly!=null?fmtNum(ly):'—'}</td>
+      <td><b>${p?fmtNum(Math.round(p.value)):'—'}</b></td>
+      <td>${p && p.projLscsRate!=null?fmtPct(p.projLscsRate):'—'}</td>
+      <td>${actual!=null?fmtNum(actual):(isFuture?'—':'—')}</td>
+      <td style="color:${variance!=null?(Math.abs(variance)<10?'#1c5a3e':'#7a2622'):'#888'};">${variance!=null?(variance>=0?'+':'')+variance.toFixed(1)+'%':'—'}</td>
+    </tr>`;
+  }
+  html += '</tbody>';
+  t.innerHTML = html;
+
+  // Accuracy chart
+  drawAccuracy();
+}
+function drawAccuracy(){
+  const labels=[], pred=[], act=[];
+  for(let i=-18;i<=0;i++){
+    const dt = new Date(CURRENT_YEAR, CURRENT_MONTH+i, 1);
+    const y=dt.getFullYear(), m=dt.getMonth();
+    const p = predictDeliveries(y,m);
+    const aEff = effectiveDeliveries(y,m);
+    const actual = aEff.value;
+    if(p && actual!=null){
+      labels.push(MONTHS[m]+' '+y);
+      pred.push(Math.round(p.value));
+      act.push(actual);
+    }
+  }
+  if(window._accChart) window._accChart.destroy();
+  window._accChart = new Chart(document.getElementById('accChart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Predicted',data:pred,borderColor:'#D9A93B',backgroundColor:'#FFE4A155',borderWidth:2,tension:0.3,borderDash:[5,5]},
+      {label:'Actual',data:act,borderColor:'#E07F77',backgroundColor:'#FFB7B255',borderWidth:2,tension:0.3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}
+  });
+}
+
+// ============== MASTER / SETTINGS ==============
+function renderMaster(){
+  const wrap = document.getElementById('customCats');
+  if(state.customCats.length===0){ wrap.innerHTML='<div class="help">No custom categories yet.</div>'; }
+  else{
+    let html = '<table><thead><tr><th>Name</th><th>Unit</th><th>Key</th><th></th></tr></thead><tbody>';
+    state.customCats.forEach(c=>{
+      html += `<tr><td>${c.label}</td><td>${c.unit==='lakhs'?'₹ Lakhs':'Count'}</td><td style="font-family:monospace;font-size:11px;color:#888;">${c.key}</td>
+        <td style="text-align:center;"><button class="danger" onclick="delCategory('${c.key}')">Remove</button></td></tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+  document.getElementById('currencyMode').value = state.settings.currency || 'auto';
+  document.getElementById('syncUrl').value = getLocalSyncUrl() || state.settings.syncUrl || '';
+  document.getElementById('autoSync').value = getLocalAutoSync() || state.settings.autoSync || 'off';
+  const info = document.getElementById('storageBackendInfo');
+  if(info) info.textContent = 'Storage backend: ' + SafeStorage.backend;
+}
+function addCategory(){
+  const name = document.getElementById('newCatName').value.trim();
+  const unit = document.getElementById('newCatUnit').value;
+  if(!name) return alert('Enter a name');
+  const key = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  if(state.customCats.some(c=>c.key===key)) return alert('Already exists');
+  state.customCats.push({key, label:name, unit, type:unit, cls:'opd'});
+  saveKey('customCats');
+  document.getElementById('newCatName').value='';
+  renderMaster();
+  toast('Category added');
+}
+function delCategory(key){
+  if(!confirm('Remove this category? Existing data is kept but the column is hidden.')) return;
+  state.customCats = state.customCats.filter(c=>c.key!==key);
+  saveKey('customCats');
+  renderMaster();
+}
+function saveSettings(){
+  state.settings.currency = document.getElementById('currencyMode').value;
+  saveKey('settings');
+  toast('Settings saved');
+}
+
+// ============== BACKUP / RESTORE ==============
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `hospital_data_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Backup downloaded');
+}
+function importData(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    try{
+      const d = JSON.parse(ev.target.result);
+      if(!confirm('This will replace ALL current data. Continue?')) return;
+      Object.assign(state, d);
+      ['monthly','annual','procMonthly','procAnnual','cycles','customCats','settings'].forEach(saveKey);
+      onTabSwitch(document.querySelector('.tab.active').dataset.panel);
+      toast('Data restored');
+    }catch(err){alert('Invalid backup file');}
+  };
+  r.readAsText(f);
+}
+async function resetAll(){
+  if(!confirm('Delete ALL data? This cannot be undone.')) return;
+  if(!confirm('Are you absolutely sure? Final warning.')) return;
+  state = {monthly:{},annual:{},procMonthly:{},procAnnual:{},cycles:[],customCats:[],settings:{currency:'auto'}};
+  for(const k of ['monthly','annual','procMonthly','procAnnual','cycles','customCats','settings']){
+    try{ await SafeStorage.delete('hosp:'+k); }catch(e){}
+  }
+  onTabSwitch(document.querySelector('.tab.active').dataset.panel);
+  toast('Reset complete');
+}
+
+// ============== TOAST ==============
+function toast(msg){
+  const t = document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:#2D3748;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+// ============== INIT ==============
+(async function init(){
+  await loadState();
+  renderDashboard();
+})();
+</script>
+</body>
+</html>
